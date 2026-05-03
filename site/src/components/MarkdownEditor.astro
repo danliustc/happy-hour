@@ -17,6 +17,13 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   <div class="editor-tabs">
     <button class="tab active" data-tab="write">Write</button>
     <button class="tab" data-tab="preview">Preview</button>
+    <div class="editor-toolbar-right">
+      <input type="file" id="image-input" accept="image/*" hidden />
+      <button type="button" id="upload-image-btn" class="toolbar-btn" title="Upload image">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15 3h-3V1h-2v2H6V1H4v2H1c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h14c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM1 6l3-3h8l3 3H1zm0 8V8l3-3 2.5 2.5L10 4l5 5v5H1z"/></svg>
+        Image
+      </button>
+    </div>
   </div>
 
   <div id="write-pane" class="editor-pane">
@@ -59,6 +66,8 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   const tagSuggestions = document.getElementById('tag-suggestions')!;
   const tagList = document.getElementById('tag-list')!;
   const publishBtn = document.getElementById('publish-btn')!;
+  const imageInput = document.getElementById('image-input') as HTMLInputElement;
+  const uploadImageBtn = document.getElementById('upload-image-btn')!;
 
   // Tab switching
   tabs.forEach(tab => {
@@ -74,6 +83,66 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
         previewPane.classList.add('hidden');
       }
     });
+  });
+
+  // Image upload
+  function insertAtCursor(text: string) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    textarea.focus();
+  }
+
+  function insertImageMd(name: string, url: string) {
+    insertAtCursor(`![${name}](${url})\n`);
+  }
+
+  async function uploadFile(file: File) {
+    const ext = file.name.split('.').pop() || 'image';
+    uploadImageBtn.setAttribute('disabled', 'true');
+    uploadImageBtn.textContent = 'Uploading...';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok) {
+        alert(data.error || 'Upload failed');
+        return;
+      }
+      insertImageMd(file.name.replace(/\.[^.]+$/, ''), data.url!);
+    } catch {
+      alert('Upload failed');
+    } finally {
+      uploadImageBtn.removeAttribute('disabled');
+      uploadImageBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15 3h-3V1h-2v2H6V1H4v2H1c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h14c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM1 6l3-3h8l3 3H1zm0 8V8l3-3 2.5 2.5L10 4l5 5v5H1z"/></svg> Image';
+    }
+  }
+
+  uploadImageBtn.addEventListener('click', () => imageInput.click());
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files?.[0];
+    if (file) uploadFile(file);
+    imageInput.value = '';
+  });
+
+  // Drag-and-drop on textarea
+  textarea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    textarea.classList.add('drag-over');
+  });
+  textarea.addEventListener('dragleave', () => {
+    textarea.classList.remove('drag-over');
+  });
+  textarea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    textarea.classList.remove('drag-over');
+    const file = e.dataTransfer?.files[0];
+    if (file && file.type.startsWith('image/')) {
+      uploadFile(file);
+    }
   });
 
   // Tag management
@@ -205,12 +274,6 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     border-color: var(--accent-dim);
   }
 
-  .editor-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
   .tab {
     padding: 0.5rem 1rem;
     background: none;
@@ -225,6 +288,51 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   .tab.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
+  }
+
+  .editor-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+
+  .editor-toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .toolbar-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+  }
+
+  .toolbar-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  textarea.drag-over {
+    border-color: var(--accent) !important;
+    background: rgba(57, 211, 83, 0.05);
   }
 
   .editor-pane textarea {
