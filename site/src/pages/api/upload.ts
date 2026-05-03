@@ -18,44 +18,59 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
   }
 
-  const formData = await request.formData();
-  const file = formData.get('file');
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file');
 
-  if (!file || !(file instanceof File)) {
-    return new Response(JSON.stringify({ error: 'No file provided' }), {
-      status: 400,
+    if (!file || !(file instanceof File)) {
+      return new Response(JSON.stringify({ error: 'No file provided' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (file.size > MAX_SIZE) {
+      return new Response(JSON.stringify({ error: 'File too large (max 5MB)' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const ext = ALLOWED_TYPES[file.type];
+    if (!ext) {
+      return new Response(JSON.stringify({ error: `Unsupported file type: ${file.type}` }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const key = `images/${locals.user.id}/${crypto.randomUUID()}.${ext}`;
+    const buffer = await file.arrayBuffer();
+
+    const { IMAGES, R2_PUBLIC_URL } = locals.runtime.env;
+
+    if (!IMAGES) {
+      return new Response(JSON.stringify({ error: 'R2 binding not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    await IMAGES.put(key, buffer, {
+      httpMetadata: { contentType: file.type },
+    });
+
+    const url = `${R2_PUBLIC_URL}/${key}`;
+
+    return new Response(JSON.stringify({ url, key }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Upload error:', err);
+    return new Response(JSON.stringify({ error: `Upload failed: ${err instanceof Error ? err.message : 'unknown'}` }), {
+      status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
-
-  if (file.size > MAX_SIZE) {
-    return new Response(JSON.stringify({ error: 'File too large (max 5MB)' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const ext = ALLOWED_TYPES[file.type];
-  if (!ext) {
-    return new Response(JSON.stringify({ error: 'Unsupported file type' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const key = `images/${locals.user.id}/${crypto.randomUUID()}.${ext}`;
-  const buffer = await file.arrayBuffer();
-
-  const { IMAGES, R2_PUBLIC_URL } = locals.runtime.env;
-
-  await IMAGES.put(key, buffer, {
-    httpMetadata: { contentType: file.type },
-  });
-
-  const url = `${R2_PUBLIC_URL}/${key}`;
-
-  return new Response(JSON.stringify({ url, key }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
 };
