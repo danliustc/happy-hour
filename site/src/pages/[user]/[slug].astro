@@ -2,6 +2,7 @@
 import NoteLayout from '../../layouts/NoteLayout.astro';
 import Recommendations from '../../components/Recommendations.astro';
 import { getDB, getArticleWithTags, getRecommendedArticles } from '../../lib/db';
+import { renderMarkdown } from '../../lib/markdown';
 
 const { user: username, slug } = Astro.params;
 const db = getDB(Astro.locals);
@@ -15,10 +16,12 @@ const tagIds = article.tags.map(t => t.id);
 const recommended = tagIds.length > 0
   ? await getRecommendedArticles(db, article.id, tagIds, 5)
   : [];
+
+const renderedHtml = renderMarkdown(article.body_markdown);
 ---
 
 <NoteLayout title={article.title} author={article.author_username} date={article.published_at} tags={article.tags}>
-  <Fragment set:html={article.body_html} />
+  <Fragment set:html={renderedHtml} />
 
   {recommended.length > 0 && (
     <Recommendations articles={recommended} />
