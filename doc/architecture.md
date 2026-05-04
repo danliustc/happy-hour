@@ -102,7 +102,7 @@ All SSR (server-rendered on every request).
 | `db.ts` | All D1 queries (users, tags, articles, stats, recommendations) |
 | `auth.ts` | JWT session management (HMAC-SHA256) |
 | `types.ts` | TypeScript interfaces |
-| `markdown.ts` | Markdown-to-HTML via `marked` |
+| `markdown.ts` | Markdown-to-sanitized-HTML via `marked` and `ultrahtml` |
 | `parser.ts` | Legacy filesystem note parser |
 | `notes.ts` | Legacy filesystem note loader |
 
@@ -115,7 +115,7 @@ Request
   │
   ├─ Page Route: query D1 via lib/db.ts → render Astro component → HTML response
   │
-  └─ API Route: validate auth → mutate D1 → return JSON response
+  └─ API Route: validate auth/input → render sanitized HTML → mutate D1 → return JSON response
 ```
 
 ## Legacy Filesystem Path

@@ -59,14 +59,14 @@ Create a new article. Requires authentication.
 ```
 
 **Side effects:**
-- Auto-generates slug from title
-- Renders markdown to HTML
+- Auto-generates a unique slug from title, adding numeric suffixes when needed
+- Renders markdown to sanitized HTML
 - Creates tags if they don't exist
 - Creates a check-in for today
 
 **Errors:**
 - 401 -- Not authenticated
-- 400 -- Missing title or body
+- 400 -- Invalid JSON, missing title, or missing body
 
 ---
 
@@ -85,12 +85,15 @@ Update an existing article. Requires authentication + ownership.
 
 **Response (200):**
 ```json
-{ "ok": true }
+{
+  "id": 42,
+  "slug": "updated-title"
+}
 ```
 
 **Errors:**
 - 401 -- Not authenticated
-- 403 -- Not the article owner
+- 400 -- Invalid article ID, invalid JSON, missing title, or missing body
 - 404 -- Article not found
 
 ---
@@ -103,7 +106,7 @@ Delete an article. Requires authentication + ownership.
 
 **Errors:**
 - 401 -- Not authenticated
-- 403 -- Not the article owner
+- 400 -- Invalid article ID
 - 404 -- Article not found
 
 ---
@@ -140,3 +143,5 @@ base64url({ userId, exp }).base64url(hmac-sha256(payload, AUTH_SECRET))
 - `exp` is Unix timestamp, 30 days from creation
 - Signed with HMAC-SHA256 using `AUTH_SECRET`
 - Cookie is httpOnly, secure, sameSite=lax
+
+GitHub OAuth also uses a short-lived `hh_oauth_state` cookie. The callback must include the same `state` value before the app exchanges the authorization code.

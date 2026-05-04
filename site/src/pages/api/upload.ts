@@ -5,7 +5,6 @@ const ALLOWED_TYPES: Record<string, string> = {
   'image/png': 'png',
   'image/gif': 'gif',
   'image/webp': 'webp',
-  'image/svg+xml': 'svg',
 };
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB

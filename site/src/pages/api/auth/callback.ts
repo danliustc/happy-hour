@@ -2,10 +2,20 @@ import type { APIRoute } from 'astro';
 import { upsertUser } from '../../../lib/db';
 import { createSession, setSessionCookie } from '../../../lib/auth';
 
+const OAUTH_STATE_COOKIE = 'hh_oauth_state';
+
 export const GET: APIRoute = async ({ request, locals, cookies }) => {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
+
+  cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
+
   if (!code) return new Response('Missing code', { status: 400 });
+  if (!state || !expectedState || state !== expectedState) {
+    return new Response('Invalid OAuth state', { status: 400 });
+  }
 
   const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, AUTH_SECRET } = locals.runtime.env;
   const redirectUri = `${url.origin}/api/auth/callback`;

@@ -63,7 +63,7 @@ The project has two data sources:
 ### How Articles Work
 
 - Users write articles via the web editor (`/editor`)
-- Articles are stored as markdown in D1 (`body_markdown`) with pre-rendered HTML (`body_html`)
+- Articles are stored as markdown in D1 (`body_markdown`) with sanitized, pre-rendered HTML (`body_html`)
 - Each article can have multiple tags
 - Tags are auto-created on first use, with autocomplete from `/api/tags/suggest`
 - Publishing an article automatically creates a daily check-in record
@@ -85,8 +85,8 @@ LIMIT 5
 ### How Auth Works
 
 1. User clicks "Sign in with GitHub" -> `/api/auth/github`
-2. Redirected to GitHub OAuth authorization page
-3. GitHub calls back `/api/auth/callback` -> exchange code for token -> fetch user profile -> upsert into D1
+2. The app sets a short-lived OAuth `state` cookie and redirects to GitHub
+3. GitHub calls back `/api/auth/callback` -> validate `state` -> exchange code for token -> fetch user profile -> upsert into D1
 4. A signed JWT cookie (`hh_session`) is set (HMAC-SHA256, 30-day expiry)
 5. Middleware reads the cookie on every request and attaches `user` to `Astro.locals`
 

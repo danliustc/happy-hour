@@ -123,6 +123,29 @@ export async function getArticleById(db: D1Database, id: number): Promise<Articl
   return db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first<Article>();
 }
 
+export async function createUniqueSlug(db: D1Database, userId: number, title: string, excludeArticleId?: number): Promise<string> {
+  const baseSlug = slugify(title) || 'article';
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (await slugExistsForUser(db, userId, slug, excludeArticleId)) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix++;
+  }
+
+  return slug;
+}
+
+async function slugExistsForUser(db: D1Database, userId: number, slug: string, excludeArticleId?: number): Promise<boolean> {
+  const query = excludeArticleId
+    ? 'SELECT id FROM articles WHERE user_id = ? AND slug = ? AND id != ? LIMIT 1'
+    : 'SELECT id FROM articles WHERE user_id = ? AND slug = ? LIMIT 1';
+  const result = excludeArticleId
+    ? await db.prepare(query).bind(userId, slug, excludeArticleId).first<{ id: number }>()
+    : await db.prepare(query).bind(userId, slug).first<{ id: number }>();
+  return !!result;
+}
+
 export async function getArticleWithTags(db: D1Database, username: string, slug: string): Promise<ArticleWithTags | null> {
   const article = await db.prepare(
     'SELECT a.*, u.username as author_username, u.avatar_url as author_avatar FROM articles a JOIN users u ON u.id = a.user_id WHERE u.username = ? AND a.slug = ?'

@@ -11,6 +11,7 @@
     "@astrojs/cloudflare": "^12.6.13",
     "arctic": "^3.7.0",
     "astro": "^5.7.10",
-    "marked": "^15.0.7"
+    "marked": "^15.0.7",
+    "ultrahtml": "^1.6.0"
   }
 }

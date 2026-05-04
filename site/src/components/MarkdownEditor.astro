@@ -54,7 +54,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
 </div>
 
 <script>
-  import { marked } from 'marked';
+  import { renderMarkdown } from '../lib/markdown';
 
   const tabs = document.querySelectorAll('.tab');
   const writePane = document.getElementById('write-pane')!;
@@ -77,7 +77,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
       if (tab.getAttribute('data-tab') === 'preview') {
         writePane.classList.add('hidden');
         previewPane.classList.remove('hidden');
-        previewContent.innerHTML = marked.parse(textarea.value) as string;
+        previewContent.innerHTML = renderMarkdown(textarea.value);
       } else {
         writePane.classList.remove('hidden');
         previewPane.classList.add('hidden');
