@@ -115,19 +115,35 @@ const user = Astro.locals.user;
     position: absolute;
     top: 100%;
     right: 0;
-    margin-top: 0.5rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.5rem 0;
-    min-width: 140px;
+    padding-top: 0.5rem;
     z-index: 100;
+  }
+
+  .dropdown::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.5rem;
   }
 
   .dropdown a {
     display: block;
     padding: 0.4rem 1rem;
     font-size: 0.8rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .dropdown a:first-child {
+    border-radius: 8px 8px 0 0;
+    border-bottom: none;
+  }
+
+  .dropdown a:last-child {
+    border-radius: 0 0 8px 8px;
   }
 
   .user-menu:hover .dropdown {
