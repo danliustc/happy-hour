@@ -1,0 +1,234 @@
+---
+import Base from '../layouts/Base.astro';
+import TagBadge from '../components/TagBadge.astro';
+import { getDB, getArticlesByUser } from '../lib/db';
+
+if (!Astro.locals.user) {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: '/api/auth/github' },
+  });
+}
+
+const db = getDB(Astro.locals);
+const articles = await getArticlesByUser(db, Astro.locals.user.id);
+
+function formatDate(d: string): string {
+  if (!d) return '';
+  const cleaned = d.replace(/-/g, '');
+  if (cleaned.length !== 8) return d;
+  return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+}
+---
+
+<Base title="My Articles - Happy Hour">
+  <section class="dashboard">
+    <div class="dashboard-header">
+      <h1>My Articles</h1>
+      <a href="/editor" class="btn-new">+ New Article</a>
+    </div>
+
+    {articles.length === 0 ? (
+      <div class="empty">
+        <p>No articles yet.</p>
+        <a href="/editor">Write your first article</a>
+      </div>
+    ) : (
+      <div class="article-list">
+        {articles.map(article => (
+          <div class="article-row" data-id={article.id}>
+            <div class="article-info">
+              <a href={`/${article.author_username}/${article.slug}/`} class="article-title">
+                {article.title}
+              </a>
+              <div class="article-meta">
+                <time>{formatDate(article.published_at)}</time>
+                {article.tags.length > 0 && (
+                  <div class="article-tags">
+                    {article.tags.map(tag => (
+                      <TagBadge name={tag.name} slug={tag.slug} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div class="article-actions">
+              <a href={`/editor/${article.id}`} class="btn btn-edit">Edit</a>
+              <button class="btn btn-delete" data-id={article.id} data-title={article.title}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+</Base>
+
+<script>
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = (btn as HTMLElement).dataset.id;
+      const title = (btn as HTMLElement).dataset.title;
+      if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        document.querySelector(`.article-row[data-id="${id}"]`)?.remove();
+        if (document.querySelectorAll('.article-row').length === 0) {
+          location.reload();
+        }
+      } else {
+        alert('Failed to delete article.');
+      }
+    });
+  });
+</script>
+
+<style>
+  .dashboard {
+    padding: 2rem 0 3rem;
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .dashboard-header h1 {
+    margin: 0;
+  }
+
+  .btn-new {
+    padding: 0.4rem 1rem;
+    background: var(--accent-dim);
+    color: var(--text);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+
+  .btn-new:hover {
+    background: var(--accent);
+    color: var(--bg);
+    text-decoration: none;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 4rem 0;
+    color: var(--text-muted);
+  }
+
+  .empty a {
+    display: inline-block;
+    margin-top: 1rem;
+    color: var(--accent);
+  }
+
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .article-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card);
+    gap: 1rem;
+  }
+
+  .article-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .article-title {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .article-title:hover {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .article-tags {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .article-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .btn {
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-muted);
+  }
+
+  .btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
+  .btn-edit {
+    text-decoration: none;
+  }
+
+  .btn-edit:hover {
+    text-decoration: none;
+  }
+
+  .btn-delete:hover {
+    border-color: #f85149;
+    color: #f85149;
+  }
+
+  @media (max-width: 640px) {
+    .article-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .article-actions {
+      margin-top: 0.5rem;
+    }
+  }
+</style>

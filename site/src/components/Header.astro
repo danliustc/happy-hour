@@ -17,7 +17,7 @@ const user = Astro.locals.user;
           <img src={user.avatar_url} alt={user.username} class="avatar" width="24" height="24" />
           <span class="username">{user.username}</span>
           <div class="dropdown">
-            <a href={`/${user.username}/`}>My Articles</a>
+            <a href="/dashboard">My Articles</a>
             <a href="/api/auth/logout">Sign Out</a>
           </div>
         </div>
