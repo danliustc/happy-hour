@@ -29,10 +29,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     await setArticleTags(db, article.id, body.tags);
   }
 
-  // Auto check-in for today
-  const today = new Date().toISOString().slice(0, 10);
-  await db.prepare('INSERT OR IGNORE INTO check_ins (user_id, date) VALUES (?, ?)').bind(locals.user.id, today).run();
-
   return new Response(JSON.stringify({ id: article.id, slug: article.slug }), {
     status: 201,
     headers: { 'Content-Type': 'application/json' },

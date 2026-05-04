@@ -42,6 +42,8 @@
 | PRIMARY KEY | (article_id, tag_id) | |
 
 ### `check_ins`
+Legacy table retained by the initial schema. Current activity stats are derived from existing article publish dates.
+
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INTEGER PK | |
@@ -52,7 +54,7 @@
 - `articles(user_id)` -- user's articles
 - `articles(published_at DESC)` -- recent articles
 - `article_tags(tag_id)` -- articles by tag
-- `check_ins(user_id, date)` -- streak lookup
+- `check_ins(user_id, date)` -- legacy check-in lookup
 
 ## Page Routes
 

@@ -92,7 +92,7 @@ LIMIT 5
 
 ### How Streaks Work
 
-Each article publish automatically creates a `check_ins` record for that day. Streaks are computed by counting consecutive days with check-in records. The homepage shows a leaderboard sorted by current streak.
+Streaks are computed from the distinct publish dates of the user's current articles. Deleting the last article for a day removes that day from the user's activity history. The homepage shows a leaderboard sorted by current streak.
 
 ## Environment Variables
 

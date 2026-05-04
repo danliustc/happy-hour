@@ -49,7 +49,7 @@ export async function getOrCreateTag(db: D1Database, name: string): Promise<Tag>
 
 export async function getAllTags(db: D1Database): Promise<(Tag & { count: number })[]> {
   return db.prepare(
-    'SELECT t.*, COUNT(at.article_id) as count FROM tags t LEFT JOIN article_tags at ON at.tag_id = t.id GROUP BY t.id ORDER BY count DESC'
+    'SELECT t.*, COUNT(at.article_id) as count FROM tags t JOIN article_tags at ON at.tag_id = t.id GROUP BY t.id ORDER BY count DESC'
   ).all().then(r => r.results as (Tag & { count: number })[]);
 }
 
@@ -76,7 +76,12 @@ export async function setArticleTags(db: D1Database, articleId: number, tagNames
 
 export async function suggestTags(db: D1Database, query: string): Promise<Tag[]> {
   return db.prepare(
-    'SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT 10'
+    `SELECT DISTINCT t.*
+     FROM tags t
+     JOIN article_tags at ON at.tag_id = t.id
+     WHERE t.name LIKE ?
+     ORDER BY t.name
+     LIMIT 10`
   ).bind(`%${query}%`).all().then(r => r.results as Tag[]);
 }
 
@@ -216,11 +221,16 @@ export async function getUserStats(db: D1Database, username: string): Promise<Us
     'SELECT COUNT(*) as count FROM articles WHERE user_id = ?'
   ).bind(user.id).first<{ count: number }>();
 
-  const checkInRows = await db.prepare(
-    'SELECT date FROM check_ins WHERE user_id = ? ORDER BY date'
+  const activityRows = await db.prepare(
+    `SELECT DISTINCT substr(published_at, 1, 10) as date
+     FROM articles
+     WHERE user_id = ? AND published_at IS NOT NULL AND substr(published_at, 1, 10) != ''
+     ORDER BY date`
   ).bind(user.id).all().then(r => r.results as { date: string }[]);
 
-  const dates = checkInRows.map(r => r.date.replace(/-/g, ''));
+  const dates = activityRows
+    .map(r => r.date.replace(/-/g, ''))
+    .filter(d => /^\d{8}$/.test(d));
   const { current, longest } = computeStreaks(dates);
 
   return {

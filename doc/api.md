@@ -62,7 +62,7 @@ Create a new article. Requires authentication.
 - Auto-generates a unique slug from title, adding numeric suffixes when needed
 - Renders markdown to sanitized HTML
 - Creates tags if they don't exist
-- Creates a check-in for today
+- The article's publish date contributes to activity stats while the article exists
 
 **Errors:**
 - 401 -- Not authenticated
