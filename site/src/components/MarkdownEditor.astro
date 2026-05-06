@@ -14,25 +14,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     <input type="text" id="article-title" placeholder="Article title..." value={initialTitle} class="title-input" />
   </div>
 
-  <div class="editor-tabs">
-    <button class="tab active" data-tab="write">Write</button>
-    <button class="tab" data-tab="preview">Preview</button>
-    <div class="editor-toolbar-right">
-      <input type="file" id="image-input" accept="image/*" hidden />
-      <button type="button" id="upload-image-btn" class="toolbar-btn" title="Upload image">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15 3h-3V1h-2v2H6V1H4v2H1c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h14c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM1 6l3-3h8l3 3H1zm0 8V8l3-3 2.5 2.5L10 4l5 5v5H1z"/></svg>
-        Image
-      </button>
-    </div>
-  </div>
-
-  <div id="write-pane" class="editor-pane">
-    <textarea id="article-body" placeholder="Write your article in markdown...">{initialBody}</textarea>
-  </div>
-
-  <div id="preview-pane" class="editor-pane hidden">
-    <div id="preview-content" class="preview-body"></div>
-  </div>
+  <div id="vditor" data-initial={initialBody}></div>
 
   <div class="editor-footer">
     <div class="tag-input-wrap">
@@ -54,95 +36,56 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
 </div>
 
 <script>
-  import { renderMarkdown } from '../lib/markdown';
+  import Vditor from 'vditor';
+  import 'vditor/dist/index.css';
 
-  const tabs = document.querySelectorAll('.tab');
-  const writePane = document.getElementById('write-pane')!;
-  const previewPane = document.getElementById('preview-pane')!;
-  const previewContent = document.getElementById('preview-content')!;
-  const textarea = document.getElementById('article-body') as HTMLTextAreaElement;
+  const container = document.getElementById('vditor')!;
+  const initialBody = container.dataset.initial || '';
   const titleInput = document.getElementById('article-title') as HTMLInputElement;
   const tagInput = document.getElementById('tag-input') as HTMLInputElement;
   const tagSuggestions = document.getElementById('tag-suggestions')!;
   const tagList = document.getElementById('tag-list')!;
   const publishBtn = document.getElementById('publish-btn')!;
-  const imageInput = document.getElementById('image-input') as HTMLInputElement;
-  const uploadImageBtn = document.getElementById('upload-image-btn')!;
 
-  // Tab switching
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      if (tab.getAttribute('data-tab') === 'preview') {
-        writePane.classList.add('hidden');
-        previewPane.classList.remove('hidden');
-        previewContent.innerHTML = renderMarkdown(textarea.value);
-      } else {
-        writePane.classList.remove('hidden');
-        previewPane.classList.add('hidden');
-      }
-    });
-  });
+  let vditor: Vditor;
 
-  // Image upload
-  function insertAtCursor(text: string) {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start + text.length;
-    textarea.focus();
-  }
-
-  function insertImageMd(name: string, url: string) {
-    insertAtCursor(`![${name}](${url})\n`);
-  }
-
-  async function uploadFile(file: File) {
-    const ext = file.name.split('.').pop() || 'image';
-    uploadImageBtn.setAttribute('disabled', 'true');
-    uploadImageBtn.textContent = 'Uploading...';
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok) {
-        alert(data.error || 'Upload failed');
-        return;
-      }
-      insertImageMd(file.name.replace(/\.[^.]+$/, ''), data.url!);
-    } catch {
-      alert('Upload failed');
-    } finally {
-      uploadImageBtn.removeAttribute('disabled');
-      uploadImageBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15 3h-3V1h-2v2H6V1H4v2H1c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h14c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM1 6l3-3h8l3 3H1zm0 8V8l3-3 2.5 2.5L10 4l5 5v5H1z"/></svg> Image';
-    }
-  }
-
-  uploadImageBtn.addEventListener('click', () => imageInput.click());
-  imageInput.addEventListener('change', () => {
-    const file = imageInput.files?.[0];
-    if (file) uploadFile(file);
-    imageInput.value = '';
-  });
-
-  // Drag-and-drop on textarea
-  textarea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    textarea.classList.add('drag-over');
-  });
-  textarea.addEventListener('dragleave', () => {
-    textarea.classList.remove('drag-over');
-  });
-  textarea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    textarea.classList.remove('drag-over');
-    const file = e.dataTransfer?.files[0];
-    if (file && file.type.startsWith('image/')) {
-      uploadFile(file);
-    }
+  vditor = new Vditor('vditor', {
+    mode: 'ir',
+    theme: 'dark',
+    value: initialBody,
+    minHeight: 480,
+    toolbar: [
+      'bold', 'italic', 'strike', '|',
+      'headings', '|',
+      'code', 'inline-code', 'quote', '|',
+      'list', 'ordered-list', 'check', '|',
+      'link', 'table', 'upload', '|',
+      'undo', 'redo', '|',
+      'fullscreen',
+    ],
+    upload: {
+      handler: async (files: File[]) => {
+        const file = files[0];
+        if (!file) return null;
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          const data = await res.json() as { url?: string; error?: string };
+          if (!res.ok) return data.error || 'Upload failed';
+          const name = file.name.replace(/\.[^.]+$/, '');
+          vditor.insertValue(`![${name}](${data.url!})\n`);
+        } catch {
+          return 'Upload failed';
+        }
+        return null;
+      },
+    },
+    preview: {
+      theme: { current: 'dark' },
+      hljs: { style: 'github-dark' },
+    },
+    cache: { enable: false },
   });
 
   // Tag management
@@ -163,12 +106,10 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     tagList.appendChild(pill);
   }
 
-  // Remove existing tags
   tagList.querySelectorAll('.tag-remove').forEach(btn => {
     btn.addEventListener('click', () => (btn as HTMLElement).closest('.tag-pill')?.remove());
   });
 
-  // Tag input
   tagInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -179,7 +120,6 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     }
   });
 
-  // Tag autocomplete
   let debounceTimer: number;
   tagInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
@@ -212,7 +152,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   // Publish
   publishBtn.addEventListener('click', async () => {
     const title = titleInput.value.trim();
-    const body = textarea.value.trim();
+    const body = vditor.getValue().trim();
     const tags = getTags();
     const articleId = (publishBtn as HTMLElement).dataset.articleId;
 
@@ -237,11 +177,10 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
         alert(data.error || 'Failed to publish');
         return;
       }
-      // Get current user from page context
       const userMeta = document.querySelector('meta[name="current-user"]');
       const username = userMeta?.getAttribute('content') || '';
       window.location.href = `/${username}/${data.slug}/`;
-    } catch (err) {
+    } catch {
       alert('Failed to publish');
     } finally {
       publishBtn.removeAttribute('disabled');
@@ -274,97 +213,36 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     border-color: var(--accent-dim);
   }
 
-  .tab {
-    padding: 0.5rem 1rem;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-
-  .tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-
-  .editor-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-  }
-
-  .editor-toolbar-right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-right: 0.5rem;
-  }
-
-  .toolbar-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.6rem;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .toolbar-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent-dim);
-  }
-
-  .toolbar-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  textarea.drag-over {
-    border-color: var(--accent) !important;
-    background: rgba(57, 211, 83, 0.05);
-  }
-
-  .editor-pane textarea {
-    width: 100%;
-    min-height: 400px;
-    padding: 1rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+  /* Vditor theme overrides to match site */
+  :global(#vditor) {
     border-radius: 8px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    resize: vertical;
-    outline: none;
+    border-color: var(--border) !important;
   }
 
-  .editor-pane textarea:focus {
-    border-color: var(--accent-dim);
+  :global(.vditor--dark) {
+    --panel-background-color: var(--bg-card) !important;
+    --textarea-background-color: var(--bg-card) !important;
+  }
+
+  :global(.vditor-toolbar) {
+    background: var(--bg) !important;
+    border-bottom-color: var(--border) !important;
+    border-radius: 8px 8px 0 0 !important;
+  }
+
+  :global(.vditor-content) {
+    background: var(--bg-card) !important;
+    border-radius: 0 0 8px 8px !important;
+  }
+
+  :global(.vditor-ir) {
+    font-family: var(--font-mono) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.8 !important;
   }
 
   .hidden {
     display: none;
-  }
-
-  .preview-body {
-    padding: 1rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    min-height: 400px;
-    line-height: 1.8;
   }
 
   .editor-footer {
