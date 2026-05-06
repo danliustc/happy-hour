@@ -22,12 +22,14 @@ function formatDisplayDate(d: string): string {
 }
 ---
 
-<a href={`/${author}/${slug}/`} class="card">
+<div class="card">
   <div class="card-header">
     <span class="card-author">@{author}</span>
     {date && <time class="card-date">{formatDisplayDate(date)}</time>}
   </div>
-  <h3 class="card-title">{title}</h3>
+  <h3 class="card-title">
+    <a href={`/${author}/${slug}/`} class="card-link">{title}</a>
+  </h3>
   {tags.length > 0 && (
     <div class="card-tags">
       {tags.filter(t => t.name).slice(0, 3).map(tag => (
@@ -35,24 +37,41 @@ function formatDisplayDate(d: string): string {
       ))}
     </div>
   )}
-</a>
+</div>
 
 <style>
   .card {
+    position: relative;
     display: block;
     padding: 1rem 1.25rem;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--bg-card);
     transition: border-color 0.2s, transform 0.2s;
-    text-decoration: none;
     color: var(--text);
   }
 
   .card:hover {
     border-color: var(--accent-dim);
     transform: translateY(-1px);
+  }
+
+  .card-link {
+    color: inherit;
     text-decoration: none;
+  }
+
+  /* stretch the title link to cover the whole card */
+  .card-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+  }
+
+  .card-tags {
+    position: relative;
+    z-index: 1;
   }
 
   .card-header {

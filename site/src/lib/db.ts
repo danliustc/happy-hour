@@ -162,7 +162,7 @@ export async function getArticleWithTags(db: D1Database, username: string, slug:
 
 export async function getRecentArticles(db: D1Database, limit: number): Promise<ArticleListItem[]> {
   const articles = await db.prepare(
-    'SELECT a.id, a.title, a.slug, a.published_at, u.username as author_username, u.avatar_url as author_avatar FROM articles a JOIN users u ON u.id = a.user_id ORDER BY a.published_at DESC LIMIT ?'
+    "SELECT a.id, a.title, a.slug, a.published_at, u.username as author_username, u.avatar_url as author_avatar FROM articles a JOIN users u ON u.id = a.user_id WHERE a.title != '' AND a.slug != '' ORDER BY a.published_at DESC LIMIT ?"
   ).bind(limit).all().then(r => r.results as ArticleListItem[]);
   for (const a of articles) {
     a.tags = await getTagsForArticle(db, a.id);
