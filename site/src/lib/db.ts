@@ -1,4 +1,4 @@
-import type { User, Tag, Article, ArticleWithTags, ArticleListItem, UserStats } from './types';
+import type { User, Tag, Article, ArticleWithTags, ArticleListItem, UserStats, Comment, CommentWithUser } from './types';
 
 function getDB(locals: App.Locals): D1Database {
   return locals.runtime.env.DB;
@@ -292,6 +292,35 @@ function computeStreaks(dates: string[]): { current: number; longest: number } {
 function parseDate(d: string): Date | null {
   if (!/^\d{8}$/.test(d)) return null;
   return new Date(parseInt(d.slice(0, 4)), parseInt(d.slice(4, 6)) - 1, parseInt(d.slice(6, 8)));
+}
+
+// --- Comments ---
+
+export async function getCommentsForArticle(db: D1Database, articleId: number): Promise<CommentWithUser[]> {
+  return db.prepare(
+    `SELECT c.*, u.username as author_username, u.display_name as author_display_name, u.avatar_url as author_avatar
+     FROM comments c JOIN users u ON u.id = c.user_id
+     WHERE c.article_id = ? ORDER BY c.created_at ASC`
+  ).bind(articleId).all().then(r => r.results as CommentWithUser[]);
+}
+
+export async function createComment(db: D1Database, data: {
+  article_id: number;
+  user_id: number;
+  body: string;
+}): Promise<Comment> {
+  const result = await db.prepare(
+    'INSERT INTO comments (article_id, user_id, body) VALUES (?, ?, ?)'
+  ).bind(data.article_id, data.user_id, data.body).run();
+  return db.prepare('SELECT * FROM comments WHERE id = ?').bind(result.meta.last_row_id).first<Comment>() as Promise<Comment>;
+}
+
+export async function getCommentById(db: D1Database, id: number): Promise<Comment | null> {
+  return db.prepare('SELECT * FROM comments WHERE id = ?').bind(id).first<Comment>();
+}
+
+export async function deleteComment(db: D1Database, id: number): Promise<void> {
+  await db.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
 }
 
 export { getDB, slugify };

@@ -1,7 +1,8 @@
 ---
 import NoteLayout from '../../layouts/NoteLayout.astro';
 import Recommendations from '../../components/Recommendations.astro';
-import { getDB, getArticleWithTags, getRecommendedArticles } from '../../lib/db';
+import Comments from '../../components/Comments.astro';
+import { getDB, getArticleWithTags, getRecommendedArticles, getCommentsForArticle } from '../../lib/db';
 import { renderMarkdown } from '../../lib/markdown';
 
 const { user: username, slug } = Astro.params;
@@ -13,9 +14,10 @@ if (!article) {
 }
 
 const tagIds = article.tags.map(t => t.id);
-const recommended = tagIds.length > 0
-  ? await getRecommendedArticles(db, article.id, tagIds, 5)
-  : [];
+const [recommended, comments] = await Promise.all([
+  tagIds.length > 0 ? getRecommendedArticles(db, article.id, tagIds, 5) : Promise.resolve([]),
+  getCommentsForArticle(db, article.id),
+]);
 
 const renderedHtml = renderMarkdown(article.body_markdown);
 ---
@@ -26,4 +28,11 @@ const renderedHtml = renderMarkdown(article.body_markdown);
   {recommended.length > 0 && (
     <Recommendations articles={recommended} />
   )}
+
+  <Comments
+    comments={comments}
+    articleId={article.id}
+    articleOwnerId={article.user_id}
+    currentUser={Astro.locals.user ?? null}
+  />
 </NoteLayout>

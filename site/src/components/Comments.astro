@@ -1,0 +1,401 @@
+---
+import type { CommentWithUser, User } from '../lib/types';
+
+interface Props {
+  comments: CommentWithUser[];
+  articleId: number;
+  articleOwnerId: number;
+  currentUser: User | null;
+}
+
+const { comments, articleId, articleOwnerId, currentUser } = Astro.props;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function commentBody(s: string): string {
+  return escapeHtml(s).replace(/\n/g, '<br>');
+}
+
+function formatDate(s: string): string {
+  try {
+    return new Date(s.replace(' ', 'T') + 'Z').toLocaleDateString('zh-CN', {
+      year: 'numeric', month: 'short', day: 'numeric',
+    });
+  } catch {
+    return s.slice(0, 10);
+  }
+}
+---
+
+<section class="comments" id="comments">
+  <h2 class="comments-title">
+    <span>Comments</span>
+    <span class="count" id="comment-count">{comments.length}</span>
+  </h2>
+
+  <div id="comments-list">
+    {comments.map(c => (
+      <div class="comment" data-id={c.id}>
+        <div class="comment-avatar">
+          {c.author_avatar
+            ? <img src={c.author_avatar} alt={c.author_username} width="32" height="32" />
+            : <span class="avatar-fallback">{c.author_username[0].toUpperCase()}</span>
+          }
+        </div>
+        <div class="comment-content">
+          <div class="comment-meta">
+            <a href={`/${c.author_username}/`} class="comment-author">@{c.author_username}</a>
+            <time class="comment-time">{formatDate(c.created_at)}</time>
+            {(currentUser && (currentUser.id === c.user_id || currentUser.id === articleOwnerId)) && (
+              <button class="delete-btn" data-comment-id={c.id} aria-label="Delete comment">×</button>
+            )}
+          </div>
+          <p class="comment-body" set:html={commentBody(c.body)} />
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {comments.length === 0 && (
+    <p class="no-comments" id="no-comments">No comments yet. Be the first!</p>
+  )}
+
+  <div class="comment-form-wrap">
+    {currentUser ? (
+      <form id="comment-form">
+        <div class="form-author">
+          {currentUser.avatar_url
+            ? <img src={currentUser.avatar_url} alt={currentUser.username} width="32" height="32" />
+            : <span class="avatar-fallback">{currentUser.username[0].toUpperCase()}</span>
+          }
+          <span class="form-username">@{currentUser.username}</span>
+        </div>
+        <textarea
+          id="comment-body"
+          name="body"
+          placeholder="Write a comment..."
+          rows="4"
+          maxlength="2000"
+        ></textarea>
+        <div class="form-footer">
+          <span class="char-count"><span id="char-remaining">2000</span> chars left</span>
+          <button type="submit" class="submit-btn">Post comment</button>
+        </div>
+        <p class="form-error" id="form-error" hidden></p>
+      </form>
+    ) : (
+      <p class="login-prompt">
+        <a href="/api/auth/github">Sign in with GitHub</a> to leave a comment.
+      </p>
+    )}
+  </div>
+</section>
+
+<script define:vars={{ articleId, currentUserId: currentUser?.id ?? null, articleOwnerId, currentUserAvatar: currentUser?.avatar_url ?? null, currentUsername: currentUser?.username ?? null }}>
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function buildCommentEl(c) {
+    const canDelete = currentUserId && (currentUserId === c.user_id || currentUserId === articleOwnerId);
+    const avatarHtml = c.author_avatar
+      ? `<img src="${escapeHtml(c.author_avatar)}" alt="${escapeHtml(c.author_username)}" width="32" height="32">`
+      : `<span class="avatar-fallback">${escapeHtml(c.author_username[0].toUpperCase())}</span>`;
+    const bodyHtml = escapeHtml(c.body).replace(/\n/g, '<br>');
+    const date = new Date(c.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('zh-CN', { year:'numeric', month:'short', day:'numeric' });
+    const deleteBtn = canDelete
+      ? `<button class="delete-btn" data-comment-id="${c.id}" aria-label="Delete comment">×</button>`
+      : '';
+    const div = document.createElement('div');
+    div.className = 'comment';
+    div.dataset.id = String(c.id);
+    div.innerHTML = `
+      <div class="comment-avatar">${avatarHtml}</div>
+      <div class="comment-content">
+        <div class="comment-meta">
+          <a href="/${escapeHtml(c.author_username)}/" class="comment-author">@${escapeHtml(c.author_username)}</a>
+          <time class="comment-time">${date}</time>
+          ${deleteBtn}
+        </div>
+        <p class="comment-body">${bodyHtml}</p>
+      </div>`;
+    return div;
+  }
+
+  function updateCount(delta) {
+    const el = document.getElementById('comment-count');
+    if (el) el.textContent = String(parseInt(el.textContent || '0') + delta);
+    const none = document.getElementById('no-comments');
+    if (none) none.hidden = parseInt(document.getElementById('comment-count')?.textContent || '0') > 0;
+  }
+
+  // Delete handler (delegated)
+  document.getElementById('comments-list')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.delete-btn');
+    if (!btn) return;
+    const commentId = btn.dataset.commentId;
+    if (!confirm('Delete this comment?')) return;
+    const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+    if (res.ok || res.status === 204) {
+      const el = document.querySelector(`.comment[data-id="${commentId}"]`);
+      el?.remove();
+      updateCount(-1);
+    }
+  });
+
+  // Submit handler
+  const form = document.getElementById('comment-form');
+  if (form) {
+    const textarea = document.getElementById('comment-body');
+    const remaining = document.getElementById('char-remaining');
+    const errorEl = document.getElementById('form-error');
+
+    textarea?.addEventListener('input', () => {
+      if (remaining) remaining.textContent = String(2000 - (textarea.value?.length ?? 0));
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = textarea?.value?.trim();
+      if (!body) return;
+      const submitBtn = form.querySelector('.submit-btn');
+      submitBtn.disabled = true;
+      errorEl.hidden = true;
+
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article_id: articleId, body }),
+      });
+
+      if (res.ok) {
+        const comment = await res.json();
+        const list = document.getElementById('comments-list');
+        const el = buildCommentEl(comment);
+        list?.appendChild(el);
+        textarea.value = '';
+        if (remaining) remaining.textContent = '2000';
+        updateCount(1);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        errorEl.textContent = err.error || 'Failed to post comment.';
+        errorEl.hidden = false;
+      }
+      submitBtn.disabled = false;
+    });
+  }
+</script>
+
+<style>
+  .comments {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .comments-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    font-family: var(--font-mono);
+  }
+
+  .count {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .comment {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .comment-avatar img,
+  .avatar-fallback {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-fallback {
+    background: var(--accent-dim);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+
+  .comment-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+  }
+
+  .comment-author {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .comment-author:hover {
+    text-decoration: underline;
+  }
+
+  .comment-time {
+    color: var(--text-muted);
+  }
+
+  .delete-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 0.2rem;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s;
+  }
+
+  .delete-btn:hover {
+    opacity: 1;
+    color: #f85149;
+  }
+
+  .comment-body {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .no-comments {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  .comment-form-wrap {
+    margin-top: 1.5rem;
+  }
+
+  #comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .form-author {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+  }
+
+  .form-author img,
+  .form-author .avatar-fallback {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+
+  .form-username {
+    color: var(--text-muted);
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    padding: 0.75rem;
+    resize: vertical;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .char-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .submit-btn {
+    background: var(--accent-dim);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .submit-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .form-error {
+    color: #f85149;
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .login-prompt {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-align: center;
+  }
+</style>

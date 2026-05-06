@@ -41,6 +41,20 @@ export interface ArticleListItem {
   tags: Tag[];
 }
 
+export interface Comment {
+  id: number;
+  article_id: number;
+  user_id: number;
+  body: string;
+  created_at: string;
+}
+
+export interface CommentWithUser extends Comment {
+  author_username: string;
+  author_display_name: string | null;
+  author_avatar: string | null;
+}
+
 export interface CheckIn {
   id: number;
   user_id: number;
