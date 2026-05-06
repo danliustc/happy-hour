@@ -13,9 +13,12 @@ const { title, author, date, tags = [] } = Astro.props;
 
 function formatDisplayDate(d: string): string {
   if (!d) return '';
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
   const cleaned = d.replace(/-/g, '');
-  if (cleaned.length !== 8) return d;
-  return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+  if (cleaned.length === 8 && /^\d{8}$/.test(cleaned))
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+  return d;
 }
 ---
 
