@@ -18,6 +18,22 @@ if (!dbUser || !stats) {
 
 const articles = await getArticlesByUser(db, dbUser.id);
 
+interface RecommendedUser {
+  username: string;
+  display_name: string;
+  avatar_url: string;
+}
+let recommendedUsers: RecommendedUser[] = [];
+try {
+  const recRes = await fetch(new URL(`/api/ai/recommend-users?username=${encodeURIComponent(username!)}`, Astro.url));
+  if (recRes.ok) {
+    const recData = await recRes.json() as { users: RecommendedUser[] };
+    recommendedUsers = recData.users ?? [];
+  }
+} catch {
+  // recommendations are non-critical
+}
+
 function formatDisplayDate(d: string): string {
   if (!d || d.length !== 8) return '-';
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
@@ -54,6 +70,23 @@ function formatDisplayDate(d: string): string {
     </div>
 
     <StreakChart checkInDates={stats.checkInDates} username={stats.username} />
+
+    {recommendedUsers.length > 0 && (
+      <section class="similar-section">
+        <h2>Similar Learners</h2>
+        <div class="similar-list">
+          {recommendedUsers.map(u => (
+            <a href={`/${u.username}/`} class="similar-card">
+              <img src={u.avatar_url} alt={u.username} class="similar-avatar" width="40" height="40" />
+              <div class="similar-info">
+                <span class="similar-name">{u.display_name || u.username}</span>
+                <span class="similar-handle">@{u.username}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
 
     <section class="notes-section">
       <h2>Articles</h2>
@@ -124,6 +157,62 @@ function formatDisplayDate(d: string): string {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-top: 0.25rem;
+  }
+
+  .similar-section {
+    margin-top: 2rem;
+  }
+
+  .similar-section h2 {
+    font-size: 1.2rem;
+    color: var(--accent);
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+
+  .similar-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .similar-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+  }
+
+  .similar-card:hover {
+    border-color: var(--accent-dim);
+  }
+
+  .similar-avatar {
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .similar-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .similar-name {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .similar-handle {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
   }
 
   .notes-section {

@@ -6,10 +6,15 @@ declare namespace App {
       env: {
         DB: D1Database;
         IMAGES: R2Bucket;
+        AI: Ai;
         R2_PUBLIC_URL: string;
         GITHUB_CLIENT_ID: string;
         GITHUB_CLIENT_SECRET: string;
         AUTH_SECRET: string;
+      };
+      ctx: {
+        waitUntil(promise: Promise<unknown>): void;
+        passThroughOnException(): void;
       };
     };
     user: {

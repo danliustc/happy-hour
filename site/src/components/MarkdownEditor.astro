@@ -17,9 +17,14 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   <div id="vditor" data-initial={initialBody}></div>
 
   <div class="editor-footer">
-    <div class="tag-input-wrap">
-      <input type="text" id="tag-input" placeholder="Add tags (comma separated)" class="tag-field" />
-      <div id="tag-suggestions" class="tag-suggestions hidden"></div>
+    <div class="tag-row">
+      <div class="tag-input-wrap">
+        <input type="text" id="tag-input" placeholder="Add tags (comma separated)" class="tag-field" />
+        <div id="tag-suggestions" class="tag-suggestions hidden"></div>
+      </div>
+      <button id="ai-tags-btn" class="ai-btn" type="button" title="Generate tags with AI">
+        ✦ AI 生成标签
+      </button>
     </div>
     <div id="tag-list" class="tag-list">
       {initialTags.map(tag => (
@@ -46,6 +51,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   const tagSuggestions = document.getElementById('tag-suggestions')!;
   const tagList = document.getElementById('tag-list')!;
   const publishBtn = document.getElementById('publish-btn')!;
+  const aiTagsBtn = document.getElementById('ai-tags-btn') as HTMLButtonElement;
 
   let vditor: Vditor;
 
@@ -149,6 +155,36 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     }, 200);
   });
 
+  // AI tag generation
+  aiTagsBtn.addEventListener('click', async () => {
+    const title = titleInput.value.trim();
+    const content = vditor.getValue().trim();
+    if (!title && !content) {
+      alert('Please write some content first');
+      return;
+    }
+    aiTagsBtn.disabled = true;
+    aiTagsBtn.textContent = 'Generating...';
+    try {
+      const res = await fetch('/api/ai/generate-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      });
+      const data = await res.json() as { tags?: string[]; error?: string };
+      if (!res.ok || !data.tags) {
+        alert(data.error || 'Failed to generate tags');
+        return;
+      }
+      for (const tag of data.tags) addTag(tag);
+    } catch {
+      alert('Failed to generate tags');
+    } finally {
+      aiTagsBtn.disabled = false;
+      aiTagsBtn.textContent = '✦ AI 生成标签';
+    }
+  });
+
   // Publish
   publishBtn.addEventListener('click', async () => {
     const title = titleInput.value.trim();
@@ -249,6 +285,40 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .tag-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .tag-row .tag-input-wrap {
+    flex: 1;
+  }
+
+  .ai-btn {
+    flex-shrink: 0;
+    padding: 0.5rem 0.9rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .ai-btn:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
+  .ai-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .tag-input-wrap {

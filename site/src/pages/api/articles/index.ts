@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getDB, createArticle, setArticleTags, createUniqueSlug } from '../../../lib/db';
 import { renderMarkdown } from '../../../lib/markdown';
+import { updateUserEmbedding } from '../../../lib/ai';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.user) {
@@ -11,7 +12,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if ('error' in body) {
     return json({ error: body.error }, body.status);
   }
-
 
   const db = getDB(locals);
   const slug = await createUniqueSlug(db, locals.user.id, body.title);
@@ -28,6 +28,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (body.tags?.length) {
     await setArticleTags(db, article.id, body.tags);
   }
+
+  const userId = locals.user.id;
+  const ai = locals.runtime.env.AI;
+  locals.runtime.ctx.waitUntil(updateUserEmbedding(db, ai, userId));
 
   return new Response(JSON.stringify({ id: article.id, slug: article.slug }), {
     status: 201,

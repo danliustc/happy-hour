@@ -323,4 +323,32 @@ export async function deleteComment(db: D1Database, id: number): Promise<void> {
   await db.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
 }
 
+// --- Embeddings ---
+
+export async function getRecentArticlesForUser(db: D1Database, userId: number, limit: number): Promise<{ title: string; body_markdown: string }[]> {
+  return db.prepare(
+    'SELECT title, body_markdown FROM articles WHERE user_id = ? ORDER BY published_at DESC LIMIT ?'
+  ).bind(userId, limit).all<{ title: string; body_markdown: string }>().then(r => r.results);
+}
+
+export async function upsertUserEmbedding(db: D1Database, userId: number, embedding: number[]): Promise<void> {
+  await db.prepare(
+    `INSERT INTO user_embeddings (user_id, embedding, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(user_id) DO UPDATE SET embedding = excluded.embedding, updated_at = excluded.updated_at`
+  ).bind(userId, JSON.stringify(embedding)).run();
+}
+
+export async function getAllUserEmbeddings(db: D1Database): Promise<{ user_id: number; embedding: number[] }[]> {
+  const rows = await db.prepare(
+    'SELECT user_id, embedding FROM user_embeddings'
+  ).all<{ user_id: number; embedding: string }>();
+  return rows.results.map(r => ({ user_id: r.user_id, embedding: JSON.parse(r.embedding) as number[] }));
+}
+
+export async function getUsersByIds(db: D1Database, ids: number[]): Promise<User[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`SELECT * FROM users WHERE id IN (${placeholders})`).bind(...ids).all<User>().then(r => r.results);
+}
+
 export { getDB, slugify };

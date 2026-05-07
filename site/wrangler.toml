@@ -13,3 +13,6 @@ R2_PUBLIC_URL = "https://pub-2c63d288267143c4b6e92808e9d38b03.r2.dev"
 [[r2_buckets]]
 binding = "IMAGES"
 bucket_name = "happy-hour-images"
+
+[ai]
+binding = "AI"

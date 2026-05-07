@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getDB, getArticleById, updateArticle, deleteArticle, setArticleTags, createUniqueSlug } from '../../../lib/db';
 import { renderMarkdown } from '../../../lib/markdown';
+import { updateUserEmbedding } from '../../../lib/ai';
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
   if (!locals.user) {
@@ -35,6 +36,10 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
 
   await setArticleTags(db, id, body.tags || []);
+
+  const userId = locals.user.id;
+  const ai = locals.runtime.env.AI;
+  locals.runtime.ctx.waitUntil(updateUserEmbedding(db, ai, userId));
 
   return new Response(JSON.stringify({ id, slug: newSlug }), {
     headers: { 'Content-Type': 'application/json' },
