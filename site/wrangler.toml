@@ -10,6 +10,7 @@ database_id = "95854693-2fdd-42f7-a037-d9fb95b5eee1"
 
 [vars]
 R2_PUBLIC_URL = "https://pub-2c63d288267143c4b6e92808e9d38b03.r2.dev"
+GITHUB_CLIENT_ID = "Ov23liUkGzrEStMQEKxb"
 
 [[r2_buckets]]
 binding = "IMAGES"
