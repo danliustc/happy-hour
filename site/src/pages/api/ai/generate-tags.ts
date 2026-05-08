@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const ai = locals.runtime.env.AI;
 
   try {
-    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    const result = await ai.run('@cf/qwen/qwen3-30b-a3b-fp8', {
       messages: [
         {
           role: 'system',

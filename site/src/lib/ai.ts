@@ -9,7 +9,7 @@ export async function updateUserEmbedding(db: D1Database, ai: Ai, userId: number
     .join('\n\n')
     .slice(0, 2048);
 
-  const result = await ai.run('@cf/baai/bge-base-en-v1.5', { text: [content] }) as { data: number[][] };
+  const result = await ai.run('@cf/baai/bge-m3', { text: [content] }) as { data: number[][] };
   const embedding = result.data[0];
   if (!embedding) return;
 
