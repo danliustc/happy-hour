@@ -57,7 +57,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
 
   vditor = new Vditor('vditor', {
     mode: 'ir',
-    theme: 'dark',
+    theme: 'classic',
     value: initialBody,
     minHeight: 480,
     toolbar: [
@@ -88,8 +88,8 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
       },
     },
     preview: {
-      theme: { current: 'dark' },
-      hljs: { style: 'github-dark' },
+      theme: { current: 'light' },
+      hljs: { style: 'github' },
     },
     cache: { enable: false },
   });
@@ -255,7 +255,7 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
     border-color: var(--border) !important;
   }
 
-  :global(.vditor--dark) {
+  :global(.vditor) {
     --panel-background-color: var(--bg-card) !important;
     --textarea-background-color: var(--bg-card) !important;
   }
@@ -403,8 +403,8 @@ const { initialTitle = '', initialBody = '', initialTags = [], articleId } = Ast
   .publish-btn {
     align-self: flex-end;
     padding: 0.6rem 1.5rem;
-    background: var(--accent);
-    color: var(--bg);
+    background: var(--accent-dim);
+    color: #fff;
     border: none;
     border-radius: 8px;
     font-family: var(--font-mono);
